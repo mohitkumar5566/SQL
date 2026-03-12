@@ -151,18 +151,50 @@
         let editRowData = {};
 
         // Interview Bank (40+)
+ // Interview Bank Expanded to 40+ Questions
         const interviewData = [
             { id: 1, title: "1. All Employees", query: "SELECT * FROM employee;", guide: "View all data from employee table." },
             { id: 2, title: "2. Unique Cities", query: "SELECT DISTINCT city FROM employee;", guide: "Get list of all unique cities." },
             { id: 3, title: "3. Salary > 50000", query: "SELECT * FROM employee WHERE salary > 50000;", guide: "Filter based on salary." },
             { id: 4, title: "4. Count by Dept", query: "SELECT dept_id, COUNT(*) FROM employee GROUP BY dept_id;", guide: "Aggregate function with group by." },
             { id: 5, title: "5. Inner Join Dept", query: "SELECT e.name, d.dept_name FROM employee e JOIN department d ON e.dept_id = d.id;", guide: "Combine two tables." },
+            { id: 6, title: "6. Max Salary", query: "SELECT MAX(salary) FROM employee;", guide: "Find highest salary." },
+            { id: 7, title: "7. Order by Name", query: "SELECT * FROM employee ORDER BY name ASC;", guide: "Sort results." },
+            { id: 8, title: "8. Employees in Delhi", query: "SELECT * FROM employee WHERE city = 'Delhi';", guide: "Filter by city." },
+            { id: 9, title: "9. Name starts with 'R'", query: "SELECT * FROM employee WHERE name LIKE 'R%';", guide: "Pattern matching." },
+            { id: 10, title: "10. Employees with Manager", query: "SELECT * FROM employee WHERE manager_id IS NOT NULL;", guide: "Check for non-null values." },
             { id: 11, title: "11. Self Join (Manager Name)", query: "SELECT e.name as Emp, m.name as Mgr FROM employee e JOIN employee m ON e.manager_id = m.id;", guide: "Finding manager name using self join." },
+            { id: 12, title: "12. Avg Salary by Dept", query: "SELECT dept_id, AVG(salary) FROM employee GROUP BY dept_id;", guide: "Calculates mean salary per department." },
+            { id: 13, title: "13. Dept with > 1 Emp", query: "SELECT dept_id FROM employee GROUP BY dept_id HAVING COUNT(*) > 1;", guide: "Filtering groups with HAVING." },
             { id: 14, title: "14. Second Highest Salary", query: "SELECT MAX(salary) FROM employee WHERE salary < (SELECT MAX(salary) FROM employee);", guide: "Subquery interview classic." },
+            { id: 15, title: "15. Total Sales Amount", query: "SELECT SUM(total_amount) FROM orders;", guide: "Sum aggregation." },
+            { id: 16, title: "16. Employee & Order Details", query: "SELECT e.name, o.id as order_id FROM employee e JOIN orders o ON e.id = o.emp_id;", guide: "Join with transactions." },
+            { id: 17, title: "17. Top 3 Salaries", query: "SELECT * FROM employee ORDER BY salary DESC LIMIT 3;", guide: "Top N results." },
+            { id: 18, title: "18. Dept Locations", query: "SELECT DISTINCT location FROM department;", guide: "Unique locations." },
+            { id: 19, title: "19. Emp in IT Dept", query: "SELECT name FROM employee WHERE dept_id = (SELECT id FROM department WHERE dept_name = 'IT');", guide: "Subquery filter." },
+            { id: 20, title: "20. Rename Column", query: "SELECT name AS 'Employee Name' FROM employee;", guide: "Alias usage." },
+            { id: 21, title: "21. Employees between 40k-60k", query: "SELECT * FROM employee WHERE salary BETWEEN 40000 AND 60000;", guide: "Range filter." },
+            { id: 22, title: "22. Count Orders per Emp", query: "SELECT emp_id, COUNT(*) FROM orders GROUP BY emp_id;", guide: "Grouping transactions." },
+            { id: 23, title: "23. Concatenate Name/City", query: "SELECT name || ' from ' || city FROM employee;", guide: "String concatenation." },
+            { id: 24, title: "24. Null Managers", query: "SELECT name FROM employee WHERE manager_id IS NULL;", guide: "Top level employees." },
+            { id: 25, title: "25. Salary with 10% Bonus", query: "SELECT name, salary * 1.1 as Total FROM employee;", guide: "Arithmetic operations." },
+            { id: 26, title: "26. Add New Column", query: "ALTER TABLE employee ADD COLUMN age INT;", guide: "Schema modification." },
+            { id: 27, title: "27. Update Salary", query: "UPDATE employee SET salary = 70000 WHERE id = 1;", guide: "Modify existing data." },
             { id: 28, title: "28. Delete Specific Row", query: "DELETE FROM employee WHERE id = 4;", guide: "Removing data." },
+            { id: 29, title: "29. Drop Orders Table", query: "DROP TABLE orders;", guide: "Complete removal of table." },
             { id: 30, title: "30. Truncate Table", query: "TRUNCATE TABLE employee;", guide: "Delete all rows (Mapped to DELETE FROM internally)." },
+            { id: 31, title: "31. Left Join Example", query: "SELECT e.name, o.id FROM employee e LEFT JOIN orders o ON e.id = o.emp_id;", guide: "All employees even if no orders." },
             { id: 32, title: "32. Salary Case Statement", query: "SELECT name, CASE WHEN salary > 50000 THEN 'High' ELSE 'Low' END as category FROM employee;", guide: "Conditional logic in SQL." },
-            { id: 40, title: "40. Create Table Mohit", query: "CREATE TABLE mohit (id INT PRIMARY KEY, name TEXT);", guide: "Manual table creation." }
+            { id: 33, title: "33. Length of Names", query: "SELECT name, LENGTH(name) FROM employee;", guide: "String functions." },
+            { id: 34, title: "34. Current Date", query: "SELECT date('now');", guide: "Date functions." },
+            { id: 35, title: "35. Union Cities", query: "SELECT city FROM employee UNION SELECT location FROM department;", guide: "Combining sets." },
+            { id: 36, title: "36. Find Duplicate Names", query: "SELECT name, COUNT(*) FROM employee GROUP BY name HAVING COUNT(*) > 1;", guide: "Quality check query." },
+            { id: 37, title: "37. Employees not in Delhi", query: "SELECT * FROM employee WHERE city != 'Delhi';", guide: "Not equal filter." },
+            { id: 38, title: "38. Dept without Employees", query: "SELECT * FROM department WHERE id NOT IN (SELECT DISTINCT dept_id FROM employee);", guide: "Anti-join logic." },
+            { id: 39, title: "39. Order by Multi-column", query: "SELECT * FROM employee ORDER BY dept_id ASC, salary DESC;", guide: "Complex sorting." },
+            { id: 40, title: "40. Create Table Mohit", query: "CREATE TABLE mohit (id INT PRIMARY KEY, name TEXT);", guide: "Manual table creation." },
+            { id: 41, title: "41. Insert into Mohit", query: "INSERT INTO mohit VALUES (1, 'Mohit');", guide: "Data entry." },
+            { id: 42, title: "42. Check Schema", query: "SELECT name FROM sqlite_master WHERE type='table';", guide: "Metadata query." }
         ];
 
         // --- GEMINI API HELPERS ---
