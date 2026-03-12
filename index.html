@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL Interview Coach - Gemini AI Integrated</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap');
+        .sql-editor {
+            font-family: 'Fira Code', monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            resize: vertical;
+        }
+        .table-container::-webkit-scrollbar { width: 6px; height: 6px; }
+        .table-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        #loading-overlay {
+            display: flex; position: fixed; inset: 0; background: white;
+            z-index: 100; align-items: center; justify-content: center; flex-direction: column;
+        }
+        .query-card { transition: all 0.2s; border-left: 4px solid transparent; }
+        .query-card:hover { background-color: #f8fafc; border-left: 4px solid #3b82f6; cursor: pointer; }
+        .active-query { background-color: #eff6ff; border-left: 4px solid #2563eb; }
+        .suggestion-pill { cursor: pointer; transition: all 0.2s; }
+        .suggestion-pill:hover { background-color: #dbeafe; border-color: #3b82f6; }
+        .gemini-gradient { background: linear-gradient(90deg, #4285f4, #9b72cb, #d96570); }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen font-sans text-slate-900">
+
+    <div id="loading-overlay">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-600 mb-4"></div>
+        <p class="text-slate-600 font-bold animate-pulse">SQL Engine Loading...</p>
+    </div>
+
+    <!-- AI Insights Modal -->
+    <div id="ai-modal" class="fixed inset-0 z-[101] bg-black/60 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col max-h-[85vh]">
+            <div class="gemini-gradient p-4 text-white flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <span>✨</span>
+                    <h3 id="ai-modal-title" class="font-bold text-sm tracking-wide">Gemini AI Assistant</h3>
+                </div>
+                <button onclick="closeAIModal()" class="text-white/80 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div id="ai-response-body" class="p-6 overflow-y-auto text-slate-700 leading-relaxed text-sm whitespace-pre-wrap">
+                <!-- AI Content -->
+            </div>
+            <div class="p-4 bg-slate-50 border-t flex justify-end">
+                <button onclick="closeAIModal()" class="px-6 py-2 bg-slate-800 text-white rounded-lg text-xs font-bold uppercase tracking-widest">Samajh Gaya!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit/Add Modal -->
+    <div id="edit-modal" class="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
+            <div class="bg-slate-800 p-4 text-white flex justify-between items-center">
+                <h3 id="modal-title" class="font-bold text-sm">Data Update Karein</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div id="modal-body" class="p-6 space-y-4 max-h-[60vh] overflow-y-auto"></div>
+            <div class="p-4 bg-slate-50 flex justify-end gap-3 border-t">
+                <button onclick="closeModal()" class="px-4 py-2 text-sm font-bold text-slate-500">Cancel</button>
+                <button id="modal-save-btn" onclick="saveData()" class="px-6 py-2 text-sm font-bold bg-blue-600 text-white rounded-lg">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <nav class="bg-slate-900 text-white p-4 shadow-xl sticky top-0 z-50">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <span class="text-2xl">🎓</span>
+                <h1 class="text-xl font-black uppercase tracking-tighter">SQL Coach Pro <span class="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded ml-2 border border-blue-500/30">AI Edition</span></h1>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="askGeminiForQuestion()" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded text-xs font-bold transition flex items-center gap-2 border border-indigo-400 shadow-lg">✨ AI Mock Question</button>
+                <button onclick="loadSampleData()" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded text-xs font-bold transition">🔄 Reset</button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto p-4 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left Panel -->
+        <aside class="lg:col-span-4 space-y-4">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[calc(100vh-140px)]">
+                <div class="bg-slate-800 p-3 sticky top-0 z-10 space-y-3">
+                    <h2 class="font-bold text-[10px] text-slate-400 uppercase tracking-widest">Interview Bank (40+)</h2>
+                    <div class="relative">
+                        <input type="text" id="query-search" oninput="filterQueries()" placeholder="Search (e.g. join, salary)..." 
+                        class="w-full bg-slate-700 text-white text-xs p-2.5 pl-8 rounded-lg outline-none border border-slate-600 focus:border-blue-500 transition-all">
+                        <span class="absolute left-2.5 top-2.5 opacity-50 text-xs">🔍</span>
+                    </div>
+                </div>
+                <div id="query-bank" class="overflow-y-auto flex-grow p-2 space-y-1"></div>
+            </div>
+        </aside>
+
+        <!-- Right Panel -->
+        <section class="lg:col-span-8 space-y-4">
+            <div id="suggestion-bar" class="flex flex-wrap gap-2 items-center min-h-[40px] bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
+                <span class="text-[10px] font-bold text-slate-400 uppercase mr-2">Quick Tables:</span>
+                <div id="suggestions-container" class="flex flex-wrap gap-2"></div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-md overflow-hidden border border-slate-200">
+                <div class="bg-slate-100 px-4 py-2 flex justify-between items-center border-b">
+                    <div class="flex gap-2">
+                        <span class="text-slate-500 text-xs font-mono font-bold pt-1">SQL Editor</span>
+                        <button onclick="explainWithGemini()" class="text-[10px] bg-indigo-100 text-indigo-700 border border-indigo-200 px-2 py-1 rounded font-bold hover:bg-indigo-200 transition">✨ Explain Query</button>
+                    </div>
+                    <button onclick="executeQuery()" class="bg-green-600 hover:bg-green-500 text-white px-8 py-2 rounded-lg font-black transition shadow-lg active:scale-95">RUN QUERY</button>
+                </div>
+                <textarea id="sql-input" class="w-full h-40 p-4 sql-editor outline-none text-base border-none" spellcheck="false" placeholder="Select a question or write your own..."></textarea>
+            </div>
+
+            <div id="guide-box" class="bg-indigo-900 text-indigo-100 rounded-xl p-4 shadow-lg border border-indigo-700 hidden">
+                <div class="flex justify-between items-start mb-1">
+                    <h3 class="text-amber-400 font-black text-xs uppercase tracking-widest">💡 Learning Guide</h3>
+                </div>
+                <p id="guide-text" class="text-sm leading-relaxed"></p>
+            </div>
+
+            <div id="status-msg" class="hidden p-3 rounded-lg text-xs font-bold transition-all"></div>
+
+            <div class="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden min-h-[300px]">
+                <div class="bg-slate-50 px-6 py-3 border-b flex justify-between items-center">
+                    <h3 class="font-bold text-slate-700 text-sm uppercase">Output</h3>
+                    <div id="schema-badge" class="text-[10px] bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold"></div>
+                </div>
+                <div id="result-container" class="table-container p-0 overflow-x-auto">
+                    <div class="flex flex-col items-center justify-center h-48 text-slate-400 text-center px-6">
+                        <p class="text-xs uppercase tracking-widest">Results will appear here. Edit or Add rows from the actions column.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const apiKey = ""; // Runtime provides the key
+        let db;
+        const SQL_STORAGE_KEY = 'sql_master_v3_gemini_v1';
+        const config = { locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${f}` };
+        
+        let currentTable = '';
+        let isEditMode = false;
+        let editRowData = {};
+
+        // Interview Bank (40+)
+        const interviewData = [
+            { id: 1, title: "1. All Employees", query: "SELECT * FROM employee;", guide: "View all data from employee table." },
+            { id: 2, title: "2. Unique Cities", query: "SELECT DISTINCT city FROM employee;", guide: "Get list of all unique cities." },
+            { id: 3, title: "3. Salary > 50000", query: "SELECT * FROM employee WHERE salary > 50000;", guide: "Filter based on salary." },
+            { id: 4, title: "4. Count by Dept", query: "SELECT dept_id, COUNT(*) FROM employee GROUP BY dept_id;", guide: "Aggregate function with group by." },
+            { id: 5, title: "5. Inner Join Dept", query: "SELECT e.name, d.dept_name FROM employee e JOIN department d ON e.dept_id = d.id;", guide: "Combine two tables." },
+            { id: 11, title: "11. Self Join (Manager Name)", query: "SELECT e.name as Emp, m.name as Mgr FROM employee e JOIN employee m ON e.manager_id = m.id;", guide: "Finding manager name using self join." },
+            { id: 14, title: "14. Second Highest Salary", query: "SELECT MAX(salary) FROM employee WHERE salary < (SELECT MAX(salary) FROM employee);", guide: "Subquery interview classic." },
+            { id: 28, title: "28. Delete Specific Row", query: "DELETE FROM employee WHERE id = 4;", guide: "Removing data." },
+            { id: 30, title: "30. Truncate Table", query: "TRUNCATE TABLE employee;", guide: "Delete all rows (Mapped to DELETE FROM internally)." },
+            { id: 32, title: "32. Salary Case Statement", query: "SELECT name, CASE WHEN salary > 50000 THEN 'High' ELSE 'Low' END as category FROM employee;", guide: "Conditional logic in SQL." },
+            { id: 40, title: "40. Create Table Mohit", query: "CREATE TABLE mohit (id INT PRIMARY KEY, name TEXT);", guide: "Manual table creation." }
+        ];
+
+        // --- GEMINI API HELPERS ---
+        async function callGemini(prompt, systemPrompt = "You are a SQL Interview Expert. Give clear, concise answers.") {
+            let retries = 5;
+            let delay = 1000;
+            
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] }
+            };
+
+            while (retries > 0) {
+                try {
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (!response.ok) throw new Error('API Error');
+                    
+                    const result = await response.json();
+                    return result.candidates?.[0]?.content?.parts?.[0]?.text || "Maaf kijiye, main jawab nahi de pa raha hoon.";
+                } catch (error) {
+                    retries--;
+                    if (retries === 0) throw error;
+                    await new Promise(r => setTimeout(r, delay));
+                    delay *= 2;
+                }
+            }
+        }
+
+        async function explainWithGemini() {
+            const query = document.getElementById('sql-input').value.trim();
+            if (!query) return showStatus("Pehle query likhein!", "error");
+            
+            showStatus("✨ Gemini AI is thinking...", "success");
+            const modal = document.getElementById('ai-modal');
+            const body = document.getElementById('ai-response-body');
+            
+            modal.classList.remove('hidden');
+            body.innerHTML = '<div class="flex items-center gap-3"><div class="animate-spin h-5 w-5 border-2 border-indigo-600 border-t-transparent rounded-full"></div> Samjha raha hoon, thoda sabr karein...</div>';
+            
+            try {
+                const prompt = `Explain this SQL query in Hinglish (Hindi + English) in a very simple way for an interview candidate. Keep it short and point-wise:\n\n${query}`;
+                const explanation = await callGemini(prompt, "You are a helpful SQL Coach. Use bullet points.");
+                body.innerText = explanation;
+            } catch (e) {
+                body.innerText = "Error: AI se sampark nahi ho paya. Internet check karein.";
+            }
+        }
+
+        async function askGeminiForQuestion() {
+            showStatus("✨ Generating Interview Question...", "success");
+            const modal = document.getElementById('ai-modal');
+            const body = document.getElementById('ai-response-body');
+            
+            modal.classList.remove('hidden');
+            body.innerHTML = '<div class="flex items-center gap-3"><div class="animate-spin h-5 w-5 border-2 border-indigo-600 border-t-transparent rounded-full"></div> Naya question taiyar kar raha hoon...</div>';
+
+            try {
+                const schema = updateSchemaInfo(true);
+                const prompt = `Based on these tables: ${schema}, give me 1 tough interview question and its SQL answer. Format: 
+                Question: ...
+                Logic: ...
+                Answer: [SQL Query]
+                Use Hinglish language.`;
+                const aiResponse = await callGemini(prompt);
+                body.innerText = aiResponse;
+                
+                // Extra feature: Try to extract the SQL query and put it in editor
+                const sqlMatch = aiResponse.match(/SELECT[\s\S]*?;/i) || aiResponse.match(/```sql([\s\S]*?)```/);
+                if (sqlMatch) {
+                    const extractedSql = Array.isArray(sqlMatch) ? (sqlMatch[1] || sqlMatch[0]) : sqlMatch;
+                    const btn = document.createElement('button');
+                    btn.className = "mt-4 block w-full bg-indigo-600 text-white p-2 rounded text-xs font-bold";
+                    btn.innerText = "Load this SQL into Editor";
+                    btn.onclick = () => {
+                        document.getElementById('sql-input').value = extractedSql.trim();
+                        closeAIModal();
+                    };
+                    body.appendChild(btn);
+                }
+            } catch (e) {
+                body.innerText = "Naya question generate karne mein error aaya.";
+            }
+        }
+
+        function closeAIModal() { document.getElementById('ai-modal').classList.add('hidden'); }
+
+        // --- SQL CORE ENGINE ---
+        initSqlJs(config).then(function(SQL){
+            const savedData = localStorage.getItem(SQL_STORAGE_KEY);
+            if (savedData) {
+                db = new SQL.Database(new Uint8Array(JSON.parse(savedData)));
+            } else {
+                db = new SQL.Database();
+                initialSeed();
+            }
+            document.getElementById('loading-overlay').style.display = 'none';
+            renderQueries(interviewData);
+            updateSchemaInfo();
+            renderSuggestions();
+        });
+
+        function initialSeed() {
+            db.run(`
+                CREATE TABLE employee (id INT PRIMARY KEY, name TEXT, dept_id INT, salary INT, city TEXT, manager_id INT);
+                INSERT INTO employee VALUES (1,'Rahul',1,65000,'Delhi',NULL),(2,'Sana',2,52000,'Mumbai',1),(3,'Amit',1,45000,'Delhi',1),(4,'Priya',3,38000,'Bangalore',2);
+                CREATE TABLE department (id INT PRIMARY KEY, dept_name TEXT, location TEXT);
+                INSERT INTO department VALUES (1,'IT','Block A'),(2,'HR','Block B'),(3,'Sales','Block C');
+                CREATE TABLE orders (id INT PRIMARY KEY, product_id INT, emp_id INT, quantity INT, total_amount INT);
+                INSERT INTO orders VALUES (101,1,1,1,55000),(102,2,3,5,6000);
+            `);
+            saveDatabase();
+        }
+
+        function renderQueries(data) {
+            const container = document.getElementById('query-bank');
+            container.innerHTML = data.map(item => `
+                <div id="card-${item.id}" class="query-card p-3 border-b border-slate-50 rounded-md cursor-pointer" onclick="selectQuery(${item.id})">
+                    <p class="text-[11px] font-bold text-slate-700">${item.title}</p>
+                    <code class="text-[9px] text-blue-500 block truncate font-mono mt-1">${item.query}</code>
+                </div>
+            `).join('');
+        }
+
+        function filterQueries() {
+            const term = document.getElementById('query-search').value.toLowerCase();
+            const filtered = interviewData.filter(q => q.title.toLowerCase().includes(term) || q.query.toLowerCase().includes(term));
+            renderQueries(filtered);
+        }
+
+        function selectQuery(id) {
+            const data = interviewData.find(x => x.id === id);
+            document.getElementById('sql-input').value = data.query;
+            document.getElementById('guide-text').innerText = data.guide;
+            document.getElementById('guide-box').classList.remove('hidden');
+            document.querySelectorAll('.query-card').forEach(c => c.classList.remove('active-query'));
+            if(document.getElementById(`card-${id}`)) document.getElementById(`card-${id}`).classList.add('active-query');
+        }
+
+        function executeQuery() {
+            const sql = document.getElementById('sql-input').value.trim();
+            if (!sql) return;
+            try {
+                let actualSql = sql;
+                if (sql.toUpperCase().startsWith("TRUNCATE TABLE")) {
+                    const tableName = sql.split(/\s+/)[2].replace(';', '');
+                    actualSql = `DELETE FROM ${tableName};`;
+                }
+
+                const res = db.exec(actualSql);
+                saveDatabase();
+                
+                const tableMatch = sql.match(/(?:FROM|TABLE|INTO|UPDATE)\s+([\w]+)/i);
+                currentTable = tableMatch ? tableMatch[1] : '';
+
+                if (res.length === 0) {
+                    const lowerSql = sql.toLowerCase();
+                    if (lowerSql.includes("select") && currentTable) {
+                        showEmptyTable(currentTable);
+                    } else if (lowerSql.includes("drop")) {
+                        document.getElementById('result-container').innerHTML = `<div class="p-10 text-center text-slate-400 text-xs font-bold">Table "${currentTable}" DROPPED successfully.</div>`;
+                        currentTable = '';
+                    } else {
+                        document.getElementById('result-container').innerHTML = `<div class="p-10 text-center text-slate-400 text-xs font-bold">Success! Execute a SELECT to see data.</div>`;
+                    }
+                } else {
+                    renderTable(res[0]);
+                }
+                
+                updateSchemaInfo();
+                renderSuggestions();
+                showStatus("Query Executed!", "success");
+            } catch (err) {
+                showStatus(err.message, "error");
+                document.getElementById('result-container').innerHTML = `<div class="p-6 text-red-500 text-xs font-mono">Error: ${err.message}</div>`;
+            }
+        }
+
+        function renderTable(data) {
+            let html = `<table class="w-full text-left border-collapse min-w-[500px]"><thead class="bg-slate-100"><tr>`;
+            data.columns.forEach(c => html += `<th class="px-4 py-3 text-[10px] font-black uppercase text-slate-500 border-b">${c}</th>`);
+            
+            if (currentTable) {
+                html += `<th class="px-4 py-3 text-[10px] font-black uppercase text-slate-500 border-b text-center">
+                    <button onclick="openAddModal()" class="bg-blue-600 text-white px-2 py-0.5 rounded text-[9px] hover:bg-blue-700 font-bold">+ ADD</button>
+                </th>`;
+            }
+            html += `</tr></thead><tbody class="divide-y">`;
+            
+            if (data.values.length === 0) {
+                html += `<tr><td colspan="${data.columns.length + 1}" class="p-10 text-center text-slate-400 text-xs italic">No rows found.</td></tr>`;
+            } else {
+                data.values.forEach(row => {
+                    html += `<tr>`;
+                    row.forEach(cell => html += `<td class="px-4 py-3 text-sm text-slate-600 font-medium">${cell ?? 'NULL'}</td>`);
+                    if (currentTable) {
+                        const obj = {}; data.columns.forEach((c, i) => obj[c] = row[i]);
+                        html += `<td class="px-4 py-3 text-center">
+                            <button onclick="openEditModal('${encodeURIComponent(JSON.stringify(obj))}')" class="text-[9px] font-bold text-blue-600 hover:bg-blue-50 px-2 py-1 rounded">EDIT</button>
+                        </td>`;
+                    }
+                    html += `</tr>`;
+                });
+            }
+            html += `</tbody></table>`;
+            document.getElementById('result-container').innerHTML = html;
+        }
+
+        function showEmptyTable(tableName) {
+            try {
+                const schema = db.exec(`PRAGMA table_info(${tableName})`);
+                if (schema.length > 0) {
+                    const columns = schema[0].values.map(v => v[1]);
+                    renderTable({ columns: columns, values: [] });
+                }
+            } catch (e) { 
+                document.getElementById('result-container').innerHTML = `<div class="p-10 text-center text-slate-400 text-xs">Table doesn't exist.</div>`;
+            }
+        }
+
+        // --- UI MODALS ---
+        function openAddModal() {
+            isEditMode = false;
+            document.getElementById('modal-title').innerText = `Add Row to "${currentTable}"`;
+            try {
+                const schema = db.exec(`PRAGMA table_info(${currentTable})`);
+                const cols = schema[0].values.map(v => v[1]);
+                const body = document.getElementById('modal-body'); body.innerHTML = '';
+                cols.forEach(k => {
+                    body.innerHTML += `<div class="mb-3"><label class="block text-[10px] font-bold text-slate-500 mb-1">${k}</label>
+                        <input type="text" id="inp-${k}" class="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter ${k}..."></div>`;
+                });
+                document.getElementById('edit-modal').classList.remove('hidden');
+            } catch (e) { showStatus("Error", "error"); }
+        }
+
+        function openEditModal(json) {
+            isEditMode = true;
+            editRowData = JSON.parse(decodeURIComponent(json));
+            document.getElementById('modal-title').innerText = `Edit Row in "${currentTable}"`;
+            const body = document.getElementById('modal-body'); body.innerHTML = '';
+            Object.keys(editRowData).forEach(k => {
+                body.innerHTML += `<div class="mb-3"><label class="block text-[10px] font-bold text-slate-500 mb-1">${k}</label>
+                    <input type="text" id="inp-${k}" value="${editRowData[k] ?? ''}" ${k==='id'?'disabled bg-gray-50':''} class="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"></div>`;
+            });
+            document.getElementById('edit-modal').classList.remove('hidden');
+        }
+
+        function saveData() {
+            const inputs = Array.from(document.querySelectorAll('#modal-body input'));
+            const data = {};
+            inputs.forEach(inp => data[inp.id.replace('inp-', '')] = inp.value);
+            try {
+                if (isEditMode) {
+                    const sets = Object.keys(data).filter(k => k !== 'id').map(k => `${k} = ${formatVal(data[k])}`);
+                    db.run(`UPDATE ${currentTable} SET ${sets.join(', ')} WHERE id = ${data.id}`);
+                } else {
+                    const keys = Object.keys(data).join(', ');
+                    const vals = Object.values(data).map(v => formatVal(v)).join(', ');
+                    db.run(`INSERT INTO ${currentTable} (${keys}) VALUES (${vals})`);
+                }
+                saveDatabase(); closeModal();
+                document.getElementById('sql-input').value = `SELECT * FROM ${currentTable};`;
+                executeQuery();
+            } catch (e) { showStatus(e.message, "error"); }
+        }
+
+        function formatVal(v) {
+            if (v === '' || v === null || v.toLowerCase() === 'null') return 'NULL';
+            return isNaN(v) ? `'${v}'` : v;
+        }
+
+        function closeModal() { document.getElementById('edit-modal').classList.add('hidden'); }
+
+        function renderSuggestions() {
+            const container = document.getElementById('suggestions-container'); container.innerHTML = '';
+            try {
+                const tables = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite%';");
+                if (tables.length > 0) {
+                    tables[0].values.forEach(v => {
+                        const pill = document.createElement('span');
+                        pill.className = "suggestion-pill bg-slate-100 border border-slate-200 text-slate-600 px-3 py-1 rounded-full text-[10px] font-bold hover:bg-blue-600 hover:text-white transition";
+                        pill.innerText = v[0];
+                        pill.onclick = () => { document.getElementById('sql-input').value = `SELECT * FROM ${v[0]};`; executeQuery(); };
+                        container.appendChild(pill);
+                    });
+                }
+            } catch (e) {}
+        }
+
+        function saveDatabase() { localStorage.setItem(SQL_STORAGE_KEY, JSON.stringify(Array.from(db.export()))); }
+        function loadSampleData() { localStorage.removeItem(SQL_STORAGE_KEY); location.reload(); }
+        
+        function updateSchemaInfo(returnData = false) {
+            try {
+                const res = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite%';");
+                if (res.length > 0) {
+                    const names = res[0].values.map(v => v[0]).join(', ');
+                    document.getElementById('schema-badge').innerText = `Schema: ${names}`;
+                    if (returnData) return names;
+                }
+            } catch (e) { }
+        }
+
+        function showStatus(msg, type) {
+            const box = document.getElementById('status-msg'); box.innerText = msg;
+            box.className = `p-2 mb-2 rounded text-[10px] font-bold shadow-sm ${type === 'success' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`;
+            box.classList.remove('hidden'); setTimeout(() => box.classList.add('hidden'), 4000);
+        }
+    </script>
+</body>
+</html>
