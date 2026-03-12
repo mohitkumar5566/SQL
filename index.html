@@ -193,7 +193,7 @@
             { id: 38, title: "38. Dept without Employees", query: "SELECT * FROM department WHERE id NOT IN (SELECT DISTINCT dept_id FROM employee);", guide: "Anti-join logic." },
             { id: 39, title: "39. Order by Multi-column", query: "SELECT * FROM employee ORDER BY dept_id ASC, salary DESC;", guide: "Complex sorting." },
             { id: 40, title: "40. Create Table Mohit", query: "CREATE TABLE mohit (id INT PRIMARY KEY, name TEXT);", guide: "Manual table creation." },
-            { id: 41, title: "41. Insert into Mohit", query: "INSERT INTO mohit VALUES (1, 'Mohit');", guide: "Data entry." },
+            { id: 41, title: "41. Insert into Mohit", query: "INSERT INTO employee (id, name, dept_id, salary, city, manager_id) VALUES (1, 'Mohit', 101, 30000, 'Delhi', 5),", guide: "Data entry." },
             { id: 42, title: "42. Check Schema", query: "SELECT name FROM sqlite_master WHERE type='table';", guide: "Metadata query." }
         ];
 
